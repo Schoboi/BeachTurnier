@@ -4,6 +4,7 @@
   const LEGACY_KEY = "beach-cup-state-v1";
   const DEFAULT_TOURNAMENT_NAME = "1. WWS-Herren BeachCup";
   const DEFAULT_LOGO_SRC = "assets/wilde-wespen-logo.jpeg";
+  const DEFAULT_FORMAT = { teamCount: 6, playersPerTeam: 2, groupCount: 2, targetScore: 15 };
 
   function readJson(key, fallback) {
     try {
@@ -201,5 +202,6 @@
     getSettings,
     saveSettings,
     DEFAULT_LOGO_SRC,
+    DEFAULT_FORMAT,
   };
 })();
