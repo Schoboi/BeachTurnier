@@ -519,6 +519,20 @@ textarea {
   gap: 10px;
 }
 
+.player-task-card {
+  display: grid;
+  gap: 6px;
+}
+
+.player-task-card p {
+  margin: 0;
+}
+
+.compact-table .is-own-team {
+  background: rgba(11, 111, 124, 0.1);
+  font-weight: 800;
+}
+
 .player-list li button {
   flex: 0 0 auto;
 }

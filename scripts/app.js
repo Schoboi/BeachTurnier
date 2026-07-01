@@ -765,10 +765,14 @@
     const team = active.tournament?.teams?.find((item) => item.players.includes(rememberedName));
     if (!active.tournament) {
       $("#playerTeamEditor").innerHTML = emptyMessage("Nach der Auslosung erscheint hier dein Team.");
+      $("#playerTaskView").innerHTML = emptyMessage("Nach der Auslosung erscheinen hier deine Aufgaben.");
+      $("#playerStandingsView").innerHTML = emptyMessage("Noch keine Tabelle verfuegbar.");
       return;
     }
     if (!rememberedName || !team) {
       $("#playerTeamEditor").innerHTML = emptyMessage("Trage dich mit deinem Namen ein, um dein Team zu bearbeiten.");
+      $("#playerTaskView").innerHTML = emptyMessage("Trage dich mit deinem Namen ein, um deine Aufgaben zu sehen.");
+      $("#playerStandingsView").innerHTML = emptyMessage("Trage dich mit deinem Namen ein, um deine Tabelle zu sehen.");
       return;
     }
     const canEdit = canEditTeamName(team);
@@ -779,6 +783,8 @@
         <input class="team-name-input" id="playerTeamNameInput" type="text" value="${escapeHtml(team.name)}" placeholder="Teamname"${canEdit ? "" : " disabled"}>
       </label>
     </div>`;
+    renderPlayerTask(team);
+    renderPlayerStandings(team);
     if (!canEdit) return;
     $("#playerTeamNameInput").addEventListener("input", (event) => {
       if (isSharedPlayer()) return;
@@ -809,6 +815,55 @@
       updateTeamName(team.id, nextName);
       persistAndRender({ immediate: true });
     });
+  }
+
+  function renderPlayerTask(team) {
+    const tournament = active.tournament;
+    const task = nextPlayerTask(team, tournament);
+    if (!task) {
+      $("#playerTaskView").innerHTML = emptyMessage("Aktuell ist keine Aufgabe fuer dein Team offen.");
+      return;
+    }
+    const label = task.kind === "play" ? "Naechstes Spiel" : "Naechstes Schiedsgericht";
+    $("#playerTaskView").innerHTML = `<div class="player-task-card">
+      <p><strong>${label}</strong></p>
+      <p>${escapeHtml(task.match.label)}</p>
+      <p>${matchTeamName(task.match.teamA, tournament)}<br>vs<br>${matchTeamName(task.match.teamB, tournament)}</p>
+      <p class="muted">Schiri: ${refereeLabel(task.match, tournament)}</p>
+    </div>`;
+  }
+
+  function nextPlayerTask(team, tournament) {
+    const openMatches = [...(tournament.matches || []), ...(tournament.finals || [])]
+      .filter((match) => match.teamA && match.teamB && !BeachTournament.matchResult(match));
+    for (const match of openMatches) {
+      if (match.teamA === team.id || match.teamB === team.id) return { kind: "play", match };
+      if (refereeTeamIdForMatch(match, tournament) === team.id) return { kind: "referee", match };
+    }
+    return null;
+  }
+
+  function renderPlayerStandings(team) {
+    const tournament = active.tournament;
+    const group = team.group || BeachTournament.groupNames(tournament).find((name) => {
+      return (tournament.groups[name] || []).some((item) => item.id === team.id);
+    });
+    if (!group) {
+      $("#playerStandingsView").innerHTML = emptyMessage("Noch keine Gruppentabelle verfuegbar.");
+      return;
+    }
+    const rows = BeachTournament.standingsForGroup(group, tournament);
+    $("#playerStandingsView").innerHTML = `<table class="compact-table">
+      <thead><tr><th>#</th><th>Team</th><th>S</th><th>N</th><th>Diff</th><th>Punkte</th></tr></thead>
+      <tbody>${rows.map((row, index) => `<tr${row.teamId === team.id ? " class=\"is-own-team\"" : ""}>
+        <td>${index + 1}</td>
+        <td>${teamLabel(row.team)}</td>
+        <td>${row.wins}</td>
+        <td>${row.losses}</td>
+        <td>${row.pointDiff}</td>
+        <td>${row.pointsFor}:${row.pointsAgainst}</td>
+      </tr>`).join("")}</tbody>
+    </table>`;
   }
 
   function renderRegistrationLink() {
@@ -1040,6 +1095,10 @@
         updateScoreInput(input, matches);
         saveScores({ immediate: true });
       });
+      input.addEventListener("blur", () => {
+        updateScoreInput(input, matches);
+        saveScores({ immediate: true });
+      });
       input.addEventListener("keydown", (event) => {
         if (event.key !== "Enter") return;
         event.preventDefault();
@@ -1065,6 +1124,14 @@
     match.sets[Number(input.dataset.set)][input.dataset.side] = value;
   }
 
+  function syncVisibleScoreInputs() {
+    if (!active.tournament) return;
+    const matches = [...(active.tournament.matches || []), ...(active.tournament.finals || [])];
+    document.querySelectorAll("[data-match][data-set][data-side]").forEach((input) => {
+      updateScoreInput(input, matches);
+    });
+  }
+
   function updateDerivedScores() {
     if (active.tournament) {
       active.tournament.finals = BeachTournament.finalsMatches(active.tournament);
@@ -1079,6 +1146,7 @@
   function saveScores(options = {}) {
     window.clearTimeout(scoreSaveTimer);
     scoreSaveTimer = null;
+    syncVisibleScoreInputs();
     updateDerivedScores();
     saveActive({ immediate: Boolean(options.immediate) });
     scheduleScoreRender();
@@ -1115,6 +1183,18 @@
   function refereeLabel(match, tournament) {
     const referee = refereeForMatch(match, tournament);
     return escapeHtml(referee);
+  }
+
+  function refereeTeamIdForMatch(match, tournament) {
+    if (match.phase === "group") {
+      const refereeTeam = (tournament.groups[match.group] || []).find((team) => {
+        return team.id !== match.teamA && team.id !== match.teamB;
+      });
+      return refereeTeam?.id || "";
+    }
+    const refereeText = refereeForMatch(match, tournament);
+    const team = (tournament.teams || []).find((item) => plainTeamLabel(item) === refereeText);
+    return team?.id || "";
   }
 
   function refereeForMatch(match, tournament) {
