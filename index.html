@@ -94,9 +94,19 @@
               <div>
                 <h3 id="sharedLobbyTitle">Shared Lobby</h3>
                 <p id="sharedLobbyText">Alle Personen mit dem Link können dieses Turnier vollständig bearbeiten.</p>
+                <div class="share-link-grid" id="shareLinkGrid" hidden>
+                  <label>
+                    Host-Link
+                    <input id="hostShareLink" type="url" readonly>
+                  </label>
+                  <label>
+                    Spieler-Link
+                    <input id="playerShareLink" type="url" readonly>
+                  </label>
+                </div>
               </div>
               <div class="button-row">
-                <button id="copyShareLinkButton" type="button">Link kopieren</button>
+                <button id="copyShareLinkButton" type="button">Host-Link kopieren</button>
                 <button id="copyPlayerLinkButton" type="button">Spieler-Link kopieren</button>
                 <button id="publishLocalButton" type="button">Online veröffentlichen</button>
                 <button id="leaveSharedLobbyButton" type="button">Verlassen</button>

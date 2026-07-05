@@ -61,6 +61,7 @@
       mode: "shared",
       id: row.id,
       shareCode: row.share_code,
+      hostShareCode: row.config?.hostShareCode || row.host_share_code || "",
       name: row.name,
       memberRole,
       version: row.version || 1,
@@ -132,6 +133,21 @@
     });
     if (error) throw explainRpcError(error, "join_shared_lobby");
     if (!data?.[0]) throw new Error("Dieses geteilte Turnier existiert nicht mehr oder der Link ist ungültig.");
+    return normalizeSharedRow(data[0]);
+  }
+
+  async function joinSharedTournamentAsHost(hostShareCode) {
+    const normalizedHostCode = normalizeShareCode(hostShareCode, "host");
+    if (!normalizedHostCode) {
+      throw new Error("Der Host-Link enthaelt keinen gueltigen Host-Code.");
+    }
+    await ensureAnonymousSession();
+    const supabase = getClient();
+    const { data, error } = await supabase.rpc("join_shared_lobby_as_host", {
+      p_host_share_code: normalizedHostCode,
+    });
+    if (error) throw explainRpcError(error, "join_shared_lobby_as_host");
+    if (!data?.[0]) throw new Error("Dieses geteilte Turnier existiert nicht mehr oder der Host-Link ist ungueltig.");
     return normalizeSharedRow(data[0]);
   }
 
@@ -246,19 +262,27 @@
     return url.toString();
   }
 
-  function normalizeShareCode(value) {
+  function getHostShareLink(sharedTournament) {
+    if (!sharedTournament.hostShareCode) return "";
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.hash = `host=${encodeURIComponent(sharedTournament.hostShareCode)}`;
+    return url.toString();
+  }
+
+  function normalizeShareCode(value, paramName = "lobby") {
     const raw = String(value || "").trim();
     if (!raw) return "";
     try {
       const url = new URL(raw);
       return (
-        url.searchParams.get("lobby") ||
-        new URLSearchParams(url.hash.replace(/^#/, "")).get("lobby") ||
+        url.searchParams.get(paramName) ||
+        new URLSearchParams(url.hash.replace(/^#/, "")).get(paramName) ||
         ""
       ).trim();
     } catch {
       return raw
-        .replace(/^#?lobby=/i, "")
+        .replace(new RegExp(`^#?${paramName}=`, "i"), "")
         .split(/[&#?]/)[0]
         .trim();
     }
@@ -270,6 +294,7 @@
     getCurrentUserId,
     createSharedTournament,
     joinSharedTournamentByCode,
+    joinSharedTournamentAsHost,
     saveSharedTournament,
     saveSharedTournamentAsHost,
     addSharedPlayer,
@@ -279,6 +304,7 @@
     subscribeToSharedTournament,
     unsubscribeFromSharedTournament,
     getShareLink,
+    getHostShareLink,
     normalizeShareCode,
     sharedToActiveTournament,
   };

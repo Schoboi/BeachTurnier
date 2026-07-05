@@ -393,7 +393,7 @@ body.dark .panel {
 .shared-lobby-box {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 14px;
   border-color: var(--primary);
 }
@@ -409,6 +409,16 @@ body.dark .panel {
 
 .shared-lobby-box.is-hidden {
   display: none;
+}
+
+.share-link-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.share-link-grid input {
+  font-size: 0.9rem;
 }
 
 .tournament-manager strong {

@@ -335,10 +335,13 @@
   }
 
   async function openSharedLobbyFromUrl() {
+    const hostCode = getHostCodeFromLocation();
     const shareCode = getShareCodeFromLocation();
-    if (!shareCode) return;
+    if (!hostCode && !shareCode) return;
     try {
-      activeShared = await SharedTournamentStore.joinSharedTournamentByCode(shareCode);
+      activeShared = hostCode
+        ? await SharedTournamentStore.joinSharedTournamentAsHost(hostCode)
+        : await SharedTournamentStore.joinSharedTournamentByCode(shareCode);
       mode = "shared";
       sharedError = "";
       resetSharedSaveQueue();
@@ -357,6 +360,12 @@
     const queryCode = new URLSearchParams(window.location.search).get("lobby");
     const hashCode = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("lobby");
     return SharedTournamentStore.normalizeShareCode(queryCode || hashCode || "");
+  }
+
+  function getHostCodeFromLocation() {
+    const queryCode = new URLSearchParams(window.location.search).get("host");
+    const hashCode = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("host");
+    return SharedTournamentStore.normalizeShareCode(queryCode || hashCode || "", "host");
   }
 
   function getViewModeFromLocation() {
@@ -434,20 +443,35 @@
   function replaceLobbyUrl(shareCode) {
     const url = new URL(window.location.href);
     url.search = "";
-    url.hash = playerMode ? `lobby=${encodeURIComponent(shareCode)}&role=player` : `lobby=${encodeURIComponent(shareCode)}`;
+    url.hash = !playerMode && activeShared?.hostShareCode
+      ? `host=${encodeURIComponent(activeShared.hostShareCode)}`
+      : playerMode ? `lobby=${encodeURIComponent(shareCode)}&role=player` : `lobby=${encodeURIComponent(shareCode)}`;
     window.history.replaceState({}, "", url.toString());
   }
 
   function clearLobbyUrl() {
     const url = new URL(window.location.href);
     url.searchParams.delete("lobby");
+    url.searchParams.delete("host");
     url.hash = "";
     window.history.replaceState({}, "", url.toString());
   }
 
-  async function copyShareLink() {
+  function getHostShareLink() {
     if (!activeShared) return;
-    const link = SharedTournamentStore.getShareLink(activeShared);
+    return SharedTournamentStore.getHostShareLink(activeShared) || SharedTournamentStore.getShareLink(activeShared);
+  }
+
+  function getPlayerShareLink() {
+    if (!activeShared) return;
+    const url = new URL(SharedTournamentStore.getShareLink(activeShared));
+    url.hash = `lobby=${encodeURIComponent(activeShared.shareCode)}&role=player`;
+    return url.toString();
+  }
+
+  async function copyShareLink() {
+    const link = getHostShareLink();
+    if (!link) return;
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(link);
     } else {
@@ -456,13 +480,12 @@
   }
 
   async function copyPlayerLink() {
-    if (!activeShared) return;
-    const url = new URL(SharedTournamentStore.getShareLink(activeShared));
-    url.hash = `lobby=${encodeURIComponent(activeShared.shareCode)}&role=player`;
+    const link = getPlayerShareLink();
+    if (!link) return;
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(url.toString());
+      await navigator.clipboard.writeText(link);
     } else {
-      prompt("Spieler-Link zum Turnier:", url.toString());
+      prompt("Spieler-Link zum Turnier:", link);
     }
   }
 
@@ -655,10 +678,15 @@
     $("#leaveSharedLobbyButton").hidden = mode !== "shared";
     $("#publishLocalButton").hidden = mode !== "local";
     $("#publishLocalButton").disabled = !SharedTournamentStore.isConfigured();
+    const hostLink = getHostShareLink() || "";
+    const playerLink = getPlayerShareLink() || "";
+    $("#shareLinkGrid").hidden = mode !== "shared" || !activeShared;
+    $("#hostShareLink").value = hostLink;
+    $("#playerShareLink").value = playerLink;
     $("#sharedLobbyTitle").textContent = mode === "shared" ? `Shared Lobby: ${active.name || "unbekannt"}` : "Lokales Turnier online veröffentlichen";
     $("#sharedLobbyText").textContent = sharedError || (mode === "shared"
       ? (isSharedHost()
-        ? "Du bist Ausrichter und kannst Teilnehmer, Auslosung, Teamnamen und Ergebnisse bearbeiten."
+        ? "Teile den Host-Link mit Ausrichtern und den Spieler-Link mit Teilnehmern."
         : "Du bist Spieler: Du kannst deinen Namen eintragen, vor der Auslosung wieder entfernen und nach der Auslosung den Namen deines Teams bearbeiten.")
       : "Erstellt eine Online-Kopie dieses lokalen Turniers und erzeugt einen Bearbeitungslink.");
   }
