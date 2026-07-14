@@ -51,6 +51,7 @@ select,
 textarea {
   font: inherit;
   font-size: 1rem;
+  max-width: 100%;
 }
 
 button,
@@ -410,6 +411,16 @@ body.dark .panel {
   border-color: var(--primary);
 }
 
+.retention-notice {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  font-size: 0.9rem;
+}
+
 .shared-lobby-box h3,
 .shared-lobby-box p {
   margin-bottom: 6px;
@@ -494,6 +505,8 @@ body.dark .panel {
 label {
   display: grid;
   gap: 7px;
+  min-width: 0;
+  max-width: 100%;
   color: var(--muted);
   font-weight: 700;
 }
@@ -502,6 +515,8 @@ input,
 select,
 textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 46px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -519,6 +534,17 @@ textarea {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: 12px;
+}
+
+.player-form > *,
+.setup-form-grid > *,
+.format-grid > *,
+.share-link-grid > *,
+.tournament-manager > *,
+.logo-manager > *,
+.self-registration > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .player-list,

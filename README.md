@@ -83,7 +83,8 @@ Der Link ist ein Spielerlink. Wer ihn erhält, kann die Lobby lesen, den eigenen
 2. Unter Auth die Anonymous Sign-ins aktivieren. Ohne diese Einstellung kann kein Browser einer Lobby beitreten.
 3. Die SQL-Migrationen in `supabase/migrations/` der Reihenfolge nach im SQL Editor oder per Supabase CLI ausführen.
 4. Realtime für die Tabelle `shared_tournaments` ist in der Migration enthalten.
-5. `.env.example` als Orientierung nutzen:
+5. Migration `006_expire_shared_lobbies.sql` richtet über `pg_cron` die stündliche Löschung aller Shared Lobbys ein, die vor mindestens 60 Tagen erstellt wurden.
+6. `.env.example` als Orientierung nutzen:
 
 ```env
 VITE_SUPABASE_URL=
