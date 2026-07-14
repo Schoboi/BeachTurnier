@@ -879,17 +879,35 @@
     const tournament = active.tournament;
     const taskInfo = playerTaskInfo(team, tournament);
     if (!taskInfo.nextTask) {
-      $("#playerTaskView").innerHTML = emptyMessage("Aktuell ist keine Aufgabe fuer dein Team offen.");
+      const finished = isTournamentComplete(tournament);
+      $("#playerTaskView").innerHTML = `<div class="player-task-card is-free">
+        <div class="player-task-focus">
+          <span class="player-task-kicker">Deine Aufgabe</span>
+          <strong class="player-task-title">${finished ? "Turnier beendet" : "Aktuell frei"}</strong>
+          <span class="player-task-action">${finished ? "Alle Spiele sind abgeschlossen." : "Für dein Team ist gerade kein Einsatz offen."}</span>
+        </div>
+      </div>`;
       return;
     }
     const label = taskLabel(taskInfo);
     const task = taskInfo.nextTask;
-    $("#playerTaskView").innerHTML = `<div class="player-task-card">
-      <p><strong>${label}</strong></p>
-      ${taskInfo.currentMatch && task.match.id !== taskInfo.currentMatch.id ? `<p class="muted">Aktuell frei · laufend: ${escapeHtml(taskInfo.currentMatch.label)}</p>` : ""}
-      <p>${escapeHtml(task.match.label)}</p>
-      <p>${matchTeamName(task.match.teamA, tournament)}<br>vs<br>${matchTeamName(task.match.teamB, tournament)}</p>
-      <p class="muted">${courtLabel(task.match)} - Schiri: ${refereeLabel(task.match, tournament)}</p>
+    const isCurrent = taskInfo.currentMatch?.id === task.match.id;
+    const actionText = task.kind === "play" ? "Spielen" : "Schiedsgericht übernehmen";
+    $("#playerTaskView").innerHTML = `<div class="player-task-card ${isCurrent ? "is-current" : "is-upcoming"}">
+      <div class="player-task-focus">
+        <span class="player-task-kicker">Deine Aufgabe</span>
+        <strong class="player-task-title">${label}</strong>
+        <span class="player-task-action">${actionText}</span>
+      </div>
+      <div class="player-task-match">
+        <span class="player-task-match-label">${escapeHtml(task.match.label)}</span>
+        <p class="player-task-teams">${matchTeamName(task.match.teamA, tournament)}<span>gegen</span>${matchTeamName(task.match.teamB, tournament)}</p>
+        <div class="player-task-meta">
+          <strong>${courtLabel(task.match)}</strong>
+          <span>Schiri: ${refereeLabel(task.match, tournament)}</span>
+        </div>
+      </div>
+      ${!isCurrent && taskInfo.currentMatch ? `<div class="player-task-waiting"><span>Derzeit läuft</span><strong>${escapeHtml(taskInfo.currentMatch.label)}</strong><small>Du bist aktuell frei. Deine Aufgabe folgt danach.</small></div>` : ""}
     </div>`;
   }
 
@@ -916,7 +934,7 @@
     if (currentMatch && nextTask.match.id === currentMatch.id) {
       return nextTask.kind === "play" ? "Jetzt spielen" : "Jetzt Schiedsgericht";
     }
-    return nextTask.kind === "play" ? "Naechstes Spiel" : "Naechstes Schiedsgericht";
+    return nextTask.kind === "play" ? "Als Nächstes spielen" : "Als Nächstes Schiedsgericht";
   }
 
   function renderPlayerProgress(team, playerName) {
@@ -1482,7 +1500,7 @@
     return rows;
   }
 
-  function exportCertificatePdf(playerName) {
+  async function exportCertificatePdf(playerName) {
     const tournament = active.tournament;
     if (!tournament || !playerName) return;
     const team = (tournament.teams || []).find((item) => item.players.includes(playerName));
@@ -1492,13 +1510,17 @@
       alert("Die finale Platzierung ist noch nicht verfuegbar.");
       return;
     }
+    const customLogoSrc = active.logoSrc && normalizeLogoSrc(active.logoSrc) !== DEFAULT_LOGO_SRC
+      ? active.logoSrc
+      : "";
+    const certificateLogo = customLogoSrc ? await loadCertificateLogo(customLogoSrc) : null;
     const pdf = buildCertificatePdf({
       playerName,
       team,
       placement,
       tournamentName: active.name || DEFAULT_TOURNAMENT_NAME,
       date: new Date().toLocaleDateString("de-DE"),
-    });
+    }, certificateLogo);
     const safeName = playerName.toLowerCase().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "spieler";
     downloadBlob(`urkunde-${safeName}.pdf`, new Blob([pdf], { type: "application/pdf" }));
   }
@@ -1652,7 +1674,7 @@
     return new Blob([value]).size;
   }
 
-  function buildCertificatePdf(data) {
+  function buildCertificatePdf(data, logo = null) {
     const theme = certificateTheme(data.placement.place);
     const teammateText = data.team.players.filter((name) => name !== data.playerName).join(" & ") || "kein Teamkollege";
     const title = data.placement.place === 1 ? "Siegerurkunde" : "Turnierurkunde";
@@ -1665,6 +1687,7 @@
       `${theme.border} RG 3 w 74 118 447 516 re S`,
       `${theme.accent} RG 2 w 90 134 415 484 re S`,
       "Q",
+      ...(logo ? [`q ${logo.displayWidth} 0 0 ${logo.displayHeight} ${logo.x} ${logo.y} cm /Logo Do Q`] : []),
       "BT",
       "/F2 34 Tf",
       `${theme.titleColor} rg`,
@@ -1691,7 +1714,51 @@
       "ET",
       ...certificateDecoration(data.placement.place),
     ].join("\n");
-    return buildPdfFromContent(content);
+    return buildPdfFromContent(content, logo);
+  }
+
+  function loadCertificateLogo(src) {
+    return new Promise((resolve) => {
+      const image = new Image();
+      if (!src.startsWith("data:")) image.crossOrigin = "anonymous";
+      image.onload = () => {
+        try {
+          const maxWidth = 82;
+          const maxHeight = 46;
+          const scale = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight, 1);
+          const displayWidth = Math.max(1, Math.round(image.naturalWidth * scale));
+          const displayHeight = Math.max(1, Math.round(image.naturalHeight * scale));
+          const canvas = document.createElement("canvas");
+          const exportScale = 3;
+          canvas.width = Math.max(1, Math.round(displayWidth * exportScale));
+          canvas.height = Math.max(1, Math.round(displayHeight * exportScale));
+          const context = canvas.getContext("2d");
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          const base64 = canvas.toDataURL("image/jpeg", 0.9).split(",")[1];
+          const binary = atob(base64);
+          let hex = "";
+          for (let index = 0; index < binary.length; index += 1) {
+            hex += binary.charCodeAt(index).toString(16).padStart(2, "0");
+          }
+          resolve({
+            hex,
+            pixelWidth: canvas.width,
+            pixelHeight: canvas.height,
+            displayWidth,
+            displayHeight,
+            x: 520 - displayWidth,
+            y: 712 + Math.round((46 - displayHeight) / 2),
+          });
+        } catch (error) {
+          console.warn("Turnierlogo konnte nicht in die Urkunde eingebettet werden:", error);
+          resolve(null);
+        }
+      };
+      image.onerror = () => resolve(null);
+      image.src = src;
+    });
   }
 
   function certificateTheme(place) {
@@ -1720,14 +1787,16 @@
     return ["q", "0.18 0.58 0.64 rg 462 620 36 36 re f", "0.08 0.36 0.4 RG 3 w 438 582 84 78 re S", "Q"];
   }
 
-  function buildPdfFromContent(stream) {
+  function buildPdfFromContent(stream, logo = null) {
+    const logoResource = logo ? " /XObject << /Logo 7 0 R >>" : "";
     const objects = [
       "<< /Type /Catalog /Pages 2 0 R >>",
       "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >>${logoResource} >> /Contents 6 0 R >>`,
       "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
       "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
       `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+      ...(logo ? [`<< /Type /XObject /Subtype /Image /Width ${logo.pixelWidth} /Height ${logo.pixelHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter [/ASCIIHexDecode /DCTDecode] /Length ${logo.hex.length + 1} >>\nstream\n${logo.hex}>\nendstream`] : []),
     ];
     let pdf = "%PDF-1.4\n";
     const offsets = [0];

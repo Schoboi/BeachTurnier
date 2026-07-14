@@ -580,11 +580,124 @@ textarea {
 
 .player-task-card {
   display: grid;
-  gap: 6px;
+  gap: 14px;
+  overflow: hidden;
+  border: 2px solid var(--primary);
+  border-radius: 10px;
+  background: var(--surface);
 }
 
 .player-task-card p {
   margin: 0;
+}
+
+.player-task-focus {
+  display: grid;
+  gap: 4px;
+  padding: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+}
+
+.player-task-card.is-upcoming .player-task-focus {
+  color: var(--ink);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 24%, var(--surface)), var(--surface-strong));
+}
+
+.player-task-card.is-free {
+  border-color: var(--line);
+}
+
+.player-task-card.is-free .player-task-focus {
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
+.player-task-kicker {
+  font-size: 0.75rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.82;
+}
+
+.player-task-title {
+  font-size: clamp(1.55rem, 5vw, 2.2rem);
+  line-height: 1.08;
+}
+
+.player-task-action {
+  margin-top: 5px;
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.player-task-match {
+  display: grid;
+  gap: 12px;
+  padding: 0 18px 18px;
+}
+
+.player-task-match-label {
+  width: fit-content;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: var(--primary-dark);
+  background: color-mix(in srgb, var(--primary) 13%, var(--surface));
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.player-task-teams {
+  display: grid;
+  gap: 3px;
+  font-size: 1.12rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.player-task-teams span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.player-task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.player-task-meta strong {
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.player-task-waiting {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 0 12px 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--muted);
+  background: var(--surface-strong);
+  font-size: 0.82rem;
+}
+
+.player-task-waiting strong {
+  color: var(--ink);
+}
+
+.player-task-waiting small {
+  grid-column: 1 / -1;
+  font-size: inherit;
 }
 
 .compact-table .is-own-team {
